@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pkl
+database.db
+data/
+models/
+.env
