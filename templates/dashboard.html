@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phishing URL Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f7f7f7;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input {
+            width: 420px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        #result {
+            margin-top: 25px;
+            padding: 15px;
+            font-weight: bold;
+            border-radius: 6px;
+            display: none;
+            white-space: pre-line;
+        }
+
+        .low {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .high {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .info {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .report-btn {
+            margin-top: 12px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .report-btn:hover {
+            background-color: #c82333;
+        }
+
+        .admin-btn {
+            background-color: #343a40;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔐 Phishing URL Scanner</h1>
+
+<input id="url" placeholder="Enter URL (e.g. http://example.com)">
+<button onclick="scanUrl()">Scan</button>
+
+<!-- 🔐 ADMIN LOGIN BUTTON -->
+<a href="/admin/login">
+    <button class="admin-btn">🔐 Admin Login</button>
+</a>
+
+<div id="result"></div>
+
+<script>
+let lastScanId = null;
+
+function scanUrl() {
+    const url = document.getElementById("url").value.trim();
+    const resultDiv = document.getElementById("result");
+
+    if (!url) {
+        resultDiv.style.display = "block";
+        resultDiv.className = "info";
+        resultDiv.innerText = "❌ Please enter a URL";
+        return;
+    }
+
+    resultDiv.style.display = "block";
+    resultDiv.className = "info";
+    resultDiv.innerText = "🔍 Scanning URL, please wait...";
+
+    fetch("/scan-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let message = "";
+
+        if (data.verdict === "KNOWN CLEAN") {
+            resultDiv.className = "low";
+            message = `✅ KNOWN CLEAN URL\nSource: ${data.source}`;
+        }
+        else if (data.verdict === "KNOWN MALICIOUS") {
+            resultDiv.className = "high";
+            message = `🚨 KNOWN MALICIOUS URL\nSource: ${data.source}`;
+        }
+        else if (data.verdict === "HIGH RISK") {
+            resultDiv.className = "high";
+            message = `⚠️ HIGH RISK URL\nSource: ${data.source}\nML Risk: ${data.ml_risk}`;
+        }
+        else {
+            resultDiv.className = "info";
+            message = `⚠️ SUSPICIOUS URL\nSource: ${data.source}\nML Risk: ${data.ml_risk}`;
+        }
+
+        message += `\n\n`;
+
+        resultDiv.innerHTML = `
+            <div>${message.replace(/\n/g, "<br>")}</div>
+            <button class="report-btn" onclick="reportUrl()">🚩 Report as Phishing</button>
+        `;
+    })
+    .catch(err => {
+        console.error(err);
+        resultDiv.className = "info";
+        resultDiv.innerText = "❌ Error scanning URL";
+    });
+}
+
+function reportUrl() {
+    fetch("/report-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            url: document.getElementById("url").value,
+            comment: "Reported by user"
+        })
+    })
+    .then(() => {
+        alert("✅ Thank you! URL reported for admin review.");
+    })
+    .catch(() => {
+        alert("❌ Failed to report URL");
+    });
+}
+</script>
+
+</body>
+</html>

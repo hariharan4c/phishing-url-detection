@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f6f8;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        th {
+            background: #343a40;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+
+        .logout {
+            float: right;
+            background: #dc3545;
+            color: white;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🛡️ Admin Dashboard</h1>
+<a href="/" class="logout">⬅ Back</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>URL</th>
+            <th>Verdict</th>
+            <th>Source</th>
+            <th>ML Risk</th>
+        </tr>
+    </thead>
+    <tbody id="data"></tbody>
+</table>
+
+<script>
+fetch("/admin/data")
+    .then(res => res.json())
+    .then(rows => {
+        const tbody = document.getElementById("data");
+        rows.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${r.url}</td>
+                <td>${r.verdict}</td>
+                <td>${r.source}</td>
+                <td>${r.ml_risk ?? "-"}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+</script>
+
+</body>
+</html>

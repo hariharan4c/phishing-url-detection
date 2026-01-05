@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            padding: 50px;
+        }
+        .box {
+            width: 350px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px #ccc;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        button {
+            background: #343a40;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #msg {
+            margin-top: 10px;
+            font-weight: bold;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🔐 Admin Login</h2>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+    <p id="msg"></p>
+</div>
+
+<script>
+function login() {
+    const msg = document.getElementById("msg");
+    msg.innerText = "⏳ Logging in...";
+
+    fetch("/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.redirect) {
+            // ✅ SUCCESS → redirect to admin dashboard
+            window.location.href = data.redirect;
+        } else if (data.error) {
+            msg.innerText = "❌ " + data.error;
+        } else {
+            msg.innerText = "❌ Login failed";
+        }
+    })
+    .catch(() => {
+        msg.innerText = "❌ Server error";
+    });
+}
+</script>
+
+</body>
+</html>

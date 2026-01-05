@@ -1,0 +1,5 @@
+https://www.google.com,⚠️ HIGH RISK URL (Risk: 1.00)
+https://www.google.com,HIGH RISK,ML,0.84
+https://www.google.com,KNOWN CLEAN,VirusTotal,
+"https://www.glassdoor.co.in/Job/mangalore-compliance-analyst-jobs-SRCH_IL.0,9_IC2931102_KO10,28.htm?jl=1009975004555&srs=JV_APPLYPANE",HIGH RISK,ML,0.96
+"https://www.glassdoor.co.in/Job/mangalore-compliance-analyst-jobs-SRCH_IL.0,9_IC2931102_KO10,28.htm?jl=1009975004555&srs=JV_APPLYPANE",KNOWN CLEAN,VirusTotal,
