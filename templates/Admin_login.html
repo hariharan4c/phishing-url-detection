@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Admin Login</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,10 +30,12 @@
             border: none;
             cursor: pointer;
         }
+        button:hover {
+            background: #23272b;
+        }
         #msg {
-            margin-top: 10px;
+            margin-top: 12px;
             font-weight: bold;
-            color: red;
         }
     </style>
 </head>
@@ -40,8 +44,9 @@
 <div class="box">
     <h2>🔐 Admin Login</h2>
 
-    <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
+    <input id="username" placeholder="Username" autocomplete="username">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+
     <button onclick="login()">Login</button>
 
     <p id="msg"></p>
@@ -50,29 +55,38 @@
 <script>
 function login() {
     const msg = document.getElementById("msg");
+    msg.style.color = "black";
     msg.innerText = "⏳ Logging in...";
 
     fetch("/admin/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-            username: document.getElementById("username").value,
-            password: document.getElementById("password").value
+            username: document.getElementById("username").value.trim(),
+            password: document.getElementById("password").value.trim()
         })
     })
-    .then(res => res.json())
+    .then(response => response.json())
     .then(data => {
         if (data.redirect) {
-            // ✅ SUCCESS → redirect to admin dashboard
+            // ✅ SUCCESS → redirect
             window.location.href = data.redirect;
-        } else if (data.error) {
-            msg.innerText = "❌ " + data.error;
-        } else {
+        } 
+        else if (data.message) {
+            msg.style.color = "red";
+            msg.innerText = "❌ " + data.message;
+        } 
+        else {
+            msg.style.color = "red";
             msg.innerText = "❌ Login failed";
         }
     })
-    .catch(() => {
-        msg.innerText = "❌ Server error";
+    .catch(error => {
+        console.error(error);
+        msg.style.color = "red";
+        msg.innerText = "❌ Server error. Try again.";
     });
 }
 </script>
