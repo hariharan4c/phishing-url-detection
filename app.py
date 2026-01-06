@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import sqlite3
 import logging
 from phase4_realtime_threat_intel_scan import scan_url
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # required for sessions later
+app.secret_key = "supersecretkey"
 DB_FILE = "database.db"
 
 # =======================
@@ -68,7 +68,7 @@ def home():
 # =======================
 @app.route("/scan-url", methods=["POST"])
 def scan():
-    data = request.get_json()
+    data = request.get_json(force=True)
     url = data.get("url")
 
     scan_result = scan_url(url)
@@ -91,85 +91,63 @@ def scan():
     return jsonify(scan_result)
 
 # =======================
-# REPORT URL (USER)
+# REPORT URL
 # =======================
 @app.route("/report-url", methods=["POST"])
 def report_url():
-    data = request.get_json()
+    data = request.get_json(force=True)
     url = data.get("url")
 
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO reports (url, comment)
-        VALUES (?, 'Reported by user')
-    """, (url,))
+    cursor.execute(
+        "INSERT INTO reports (url, comment) VALUES (?, ?)",
+        (url, "Reported by user")
+    )
     conn.commit()
     conn.close()
 
-    logging.warning(f"User reported URL: {url}")
     return jsonify({"status": "reported"})
 
 # =======================
-# ADMIN LOGIN (FIXED)
+# ADMIN LOGIN
 # =======================
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "GET":
         return render_template("admin_login.html")
 
-    data = request.get_json(silent=True)
-
-    if not data:
-        return jsonify({"error": "Invalid request"}), 400
-
+    data = request.get_json(force=True)
     username = data.get("username")
     password = data.get("password")
 
-    if username == "admin" and password == "admin123":
-        logging.info("Admin logged in")
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        session["admin_logged_in"] = True
         return jsonify({"redirect": "/admin/dashboard"})
 
-    return jsonify({"message": "Invalid credentials"}), 401
+    return jsonify({"error": "Invalid username or password"}), 401
 
 # =======================
 # ADMIN DASHBOARD
 # =======================
 @app.route("/admin/dashboard")
 def admin_dashboard():
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
     return render_template("admin_dashboard.html")
-
-# =======================
-# ADMIN SCANS
-# =======================
-@app.route("/admin/scans")
-def admin_scans():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT url, verdict, source, ml_risk, timestamp
-        FROM scans
-        ORDER BY timestamp DESC
-    """)
-    rows = cursor.fetchall()
-    conn.close()
-
-    return jsonify([
-        {
-            "url": r[0],
-            "verdict": r[1],
-            "source": r[2],
-            "ml_risk": r[3],
-            "timestamp": r[4]
-        }
-        for r in rows
-    ])
 
 # =======================
 # ADMIN REPORTS
 # =======================
 @app.route("/admin/reports")
 def admin_reports():
+    if not session.get("admin_logged_in"):
+        return jsonify({"error": "Unauthorized"}), 403
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -190,36 +168,6 @@ def admin_reports():
         }
         for r in rows
     ])
-
-# =======================
-# ADMIN APPROVE / REJECT
-# =======================
-@app.route("/admin/approve", methods=["POST"])
-def approve_report():
-    data = request.get_json()
-    report_id = data.get("report_id")
-    status = data.get("status")
-
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "UPDATE reports SET status=? WHERE id=?",
-        (status, report_id)
-    )
-
-    if status == "approved":
-        cursor.execute("""
-            INSERT OR IGNORE INTO internal_threats (url, source)
-            SELECT url, 'User Report'
-            FROM reports WHERE id=?
-        """, (report_id,))
-
-    conn.commit()
-    conn.close()
-
-    logging.warning(f"Admin updated report {report_id} → {status}")
-    return jsonify({"status": status})
 
 # =======================
 # RUN SERVER (RENDER SAFE)
