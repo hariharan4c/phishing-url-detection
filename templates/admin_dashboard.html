@@ -4,25 +4,34 @@
     <title>Admin Dashboard</title>
     <style>
         body {
-            font-family: Arial;
+            font-family: Arial, sans-serif;
             background: #f4f6f8;
             padding: 30px;
         }
 
-        h1 {
-            color: #333;
+        h2 {
+            margin-bottom: 15px;
+        }
+
+        .logout {
+            float: right;
+            text-decoration: none;
+            background: #dc3545;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
             background: white;
+            margin-top: 20px;
         }
 
         th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 12px;
+            border: 1px solid #ddd;
             text-align: left;
         }
 
@@ -31,53 +40,100 @@
             color: white;
         }
 
-        tr:nth-child(even) {
-            background: #f2f2f2;
+        button {
+            padding: 6px 10px;
+            margin-right: 6px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
         }
 
-        .logout {
-            float: right;
+        .approve {
+            background: #28a745;
+            color: white;
+        }
+
+        .reject {
             background: #dc3545;
             color: white;
-            padding: 8px 12px;
-            text-decoration: none;
-            border-radius: 4px;
+        }
+
+        .empty {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #555;
         }
     </style>
 </head>
 <body>
 
-<h1>🛡️ Admin Dashboard</h1>
-<a href="/" class="logout">⬅ Back</a>
+<h2>🛡️ Admin – Reported URLs
+    <a class="logout" href="/admin/logout">Logout</a>
+</h2>
 
-<table>
+<table id="reportTable">
     <thead>
         <tr>
+            <th>ID</th>
             <th>URL</th>
-            <th>Verdict</th>
-            <th>Source</th>
-            <th>ML Risk</th>
+            <th>Comment</th>
+            <th>Reported At</th>
+            <th>Action</th>
         </tr>
     </thead>
-    <tbody id="data"></tbody>
+    <tbody></tbody>
 </table>
 
+<p id="emptyMsg" class="empty" style="display:none;">
+    ✅ No pending reports
+</p>
+
 <script>
-fetch("/admin/data")
-    .then(res => res.json())
-    .then(rows => {
-        const tbody = document.getElementById("data");
-        rows.forEach(r => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${r.url}</td>
-                <td>${r.verdict}</td>
-                <td>${r.source}</td>
-                <td>${r.ml_risk ?? "-"}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+fetch("/admin/api/reports")
+.then(res => res.json())
+.then(data => {
+    const tableBody = document.querySelector("#reportTable tbody");
+    const emptyMsg = document.getElementById("emptyMsg");
+
+    if (data.length === 0) {
+        emptyMsg.style.display = "block";
+        return;
+    }
+
+    data.forEach(r => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${r.id}</td>
+            <td>${r.url}</td>
+            <td>${r.comment}</td>
+            <td>${r.timestamp}</td>
+            <td>
+                <button class="approve" onclick="review(${r.id}, 'approve')">Approve</button>
+                <button class="reject" onclick="review(${r.id}, 'reject')">Reject</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
     });
+});
+
+function review(reportId, action) {
+    fetch("/admin/api/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            report_id: reportId,
+            action: action
+        })
+    })
+    .then(res => res.json())
+    .then(() => {
+        alert("✔ Action completed");
+        location.reload();
+    })
+    .catch(() => {
+        alert("❌ Action failed");
+    });
+}
 </script>
 
 </body>

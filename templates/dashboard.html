@@ -2,91 +2,148 @@
 <html>
 <head>
     <title>Phishing URL Scanner</title>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            background-color: #f7f7f7;
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 🔥 BACKGROUND IMAGE WITH BLUR */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: url("https://images.unsplash.com/photo-1600267165603-7b9f6f03d6c5")
+                        no-repeat center center/cover;
+            filter: blur(6px);
+            z-index: -2;
+        }
+
+        /* DARK OVERLAY */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: -1;
+        }
+
+        /* MAIN CARD */
+        .card {
+            width: 500px;
+            margin: 120px auto 0;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            text-align: center;
         }
 
         h1 {
-            color: #333;
+            margin-bottom: 25px;
+            color: #1b263b;
         }
 
         input {
-            width: 420px;
-            padding: 10px;
-            font-size: 14px;
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
         }
 
-        button {
-            padding: 10px 15px;
-            font-size: 14px;
+        .scan-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            font-size: 15px;
+            border: none;
+            border-radius: 6px;
+            background: #1b263b;
+            color: white;
             cursor: pointer;
-            margin-right: 8px;
+        }
+
+        .scan-btn:hover {
+            background: #415a77;
         }
 
         #result {
-            margin-top: 25px;
+            margin-top: 20px;
             padding: 15px;
-            font-weight: bold;
             border-radius: 6px;
             display: none;
             white-space: pre-line;
+            font-weight: bold;
         }
 
         .low {
-            background-color: #d4edda;
-            color: #155724;
+            background: #eafaf1;
+            color: #2ecc71;
+            border-left: 6px solid #2ecc71;
         }
 
         .high {
-            background-color: #f8d7da;
-            color: #721c24;
+            background: #fdecea;
+            color: #e74c3c;
+            border-left: 6px solid #e74c3c;
         }
 
         .info {
-            background-color: #fff3cd;
-            color: #856404;
+            background: #fff8e1;
+            color: #f1c40f;
+            border-left: 6px solid #f1c40f;
         }
 
-        .report-btn {
-            margin-top: 12px;
-            background-color: #dc3545;
+        /* 🔐 ADMIN LOGIN AT BOTTOM */
+        .admin-login {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+        }
+
+        .admin-login a {
+            text-decoration: none;
+            background: #000;
             color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
         }
 
-        .report-btn:hover {
-            background-color: #c82333;
-        }
-
-        .admin-btn {
-            background-color: #343a40;
-            color: white;
+        .admin-login a:hover {
+            background: #333;
         }
     </style>
 </head>
 <body>
 
-<h1>🔐 Phishing URL Scanner</h1>
+<div class="card">
+    <h1>🔐 Phishing URL Scanner</h1>
 
-<input id="url" placeholder="Enter URL (e.g. http://example.com)">
-<button onclick="scanUrl()">Scan</button>
+    <input id="url" placeholder="Enter URL (e.g. https://example.com)">
+    <button class="scan-btn" onclick="scanUrl()">
+        <i class="fa fa-search"></i> Scan URL
+    </button>
 
-<!-- 🔐 ADMIN LOGIN BUTTON -->
-<a href="/admin/login">
-    <button class="admin-btn">🔐 Admin Login</button>
-</a>
+    <div id="result"></div>
+</div>
 
-<div id="result"></div>
+<!-- ADMIN LOGIN FIXED AT BOTTOM -->
+<div class="admin-login">
+    <a href="/admin/login">
+        <i class="fa fa-user-shield"></i> Admin Login
+    </a>
+</div>
 
 <script>
-let lastScanId = null;
-
 function scanUrl() {
     const url = document.getElementById("url").value.trim();
     const resultDiv = document.getElementById("result");
@@ -104,7 +161,7 @@ function scanUrl() {
 
     fetch("/scan-url", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ url: url })
     })
     .then(res => res.json())
@@ -128,34 +185,11 @@ function scanUrl() {
             message = `⚠️ SUSPICIOUS URL\nSource: ${data.source}\nML Risk: ${data.ml_risk}`;
         }
 
-        message += `\n\n`;
-
-        resultDiv.innerHTML = `
-            <div>${message.replace(/\n/g, "<br>")}</div>
-            <button class="report-btn" onclick="reportUrl()">🚩 Report as Phishing</button>
-        `;
-    })
-    .catch(err => {
-        console.error(err);
-        resultDiv.className = "info";
-        resultDiv.innerText = "❌ Error scanning URL";
-    });
-}
-
-function reportUrl() {
-    fetch("/report-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            url: document.getElementById("url").value,
-            comment: "Reported by user"
-        })
-    })
-    .then(() => {
-        alert("✅ Thank you! URL reported for admin review.");
+        resultDiv.innerText = message;
     })
     .catch(() => {
-        alert("❌ Failed to report URL");
+        resultDiv.className = "info";
+        resultDiv.innerText = "❌ Error scanning URL";
     });
 }
 </script>

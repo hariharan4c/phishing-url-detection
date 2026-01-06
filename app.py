@@ -92,7 +92,7 @@ def scan():
     return jsonify(scan_result)
 
 # =======================
-# REPORT URL (USER)
+# USER REPORT
 # =======================
 @app.route("/report-url", methods=["POST"])
 def report_url():
@@ -133,7 +133,7 @@ def admin_login():
     return jsonify({"error": "Invalid username or password"}), 401
 
 # =======================
-# ADMIN LOGOUT (OPTIONAL)
+# ADMIN LOGOUT
 # =======================
 @app.route("/admin/logout")
 def admin_logout():
