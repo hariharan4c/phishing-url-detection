@@ -1,147 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Phishing URL Scanner</title>
+<meta charset="UTF-8">
+<title>Phishing URL Scanner</title>
 
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ===== PAGE BACKGROUND ===== */
+body {
+    margin: 0;
+    height: 100vh;
+    font-family: Arial, sans-serif;
 
-    <style>
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            height: 100vh;
-            overflow: hidden;
-        }
+    background:
+        linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+        url("/static/images/Background.jpg");
 
-        /* 🔥 BACKGROUND IMAGE WITH BLUR */
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: url("https://images.unsplash.com/photo-1600267165603-7b9f6f03d6c5")
-                        no-repeat center center/cover;
-            filter: blur(6px);
-            z-index: -2;
-        }
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 
-        /* DARK OVERLAY */
-        body::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.55);
-            z-index: -1;
-        }
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
 
-        /* MAIN CARD */
-        .card {
-            width: 500px;
-            margin: 120px auto 0;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            text-align: center;
-        }
+/* ===== MAIN CARD ===== */
+.card {
+    background: white;
+    width: 420px;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
 
-        h1 {
-            margin-bottom: 25px;
-            color: #1b263b;
-        }
+.card h1 {
+    margin-bottom: 20px;
+    color: #1f2a44;
+}
 
-        input {
-            width: 100%;
-            padding: 12px;
-            font-size: 15px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
+/* ===== INPUT ===== */
+input {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    margin-bottom: 15px;
+}
 
-        .scan-btn {
-            width: 100%;
-            margin-top: 15px;
-            padding: 12px;
-            font-size: 15px;
-            border: none;
-            border-radius: 6px;
-            background: #1b263b;
-            color: white;
-            cursor: pointer;
-        }
+/* ===== SCAN BUTTON ===== */
+button {
+    width: 100%;
+    padding: 12px;
+    background: #1f2a44;
+    color: white;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
 
-        .scan-btn:hover {
-            background: #415a77;
-        }
+button:hover {
+    background: #162035;
+}
 
-        #result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 6px;
-            display: none;
-            white-space: pre-line;
-            font-weight: bold;
-        }
+/* ===== RESULT ===== */
+#result {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 6px;
+    display: none;
+    font-weight: bold;
+}
 
-        .low {
-            background: #eafaf1;
-            color: #2ecc71;
-            border-left: 6px solid #2ecc71;
-        }
+.low { background: #d4edda; color: #155724; }
+.high { background: #f8d7da; color: #721c24; }
+.info { background: #fff3cd; color: #856404; }
 
-        .high {
-            background: #fdecea;
-            color: #e74c3c;
-            border-left: 6px solid #e74c3c;
-        }
+/* ===== ADMIN BUTTON ===== */
+.admin-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
 
-        .info {
-            background: #fff8e1;
-            color: #f1c40f;
-            border-left: 6px solid #f1c40f;
-        }
+    background: black;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
 
-        /* 🔐 ADMIN LOGIN AT BOTTOM */
-        .admin-login {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-        }
-
-        .admin-login a {
-            text-decoration: none;
-            background: #000;
-            color: white;
-            padding: 10px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .admin-login a:hover {
-            background: #333;
-        }
-    </style>
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.admin-btn:hover {
+    background: #222;
+}
+</style>
 </head>
+
 <body>
 
 <div class="card">
     <h1>🔐 Phishing URL Scanner</h1>
 
     <input id="url" placeholder="Enter URL (e.g. https://example.com)">
-    <button class="scan-btn" onclick="scanUrl()">
-        <i class="fa fa-search"></i> Scan URL
-    </button>
+    <button onclick="scanUrl()">🔍 Scan URL</button>
 
     <div id="result"></div>
 </div>
 
-<!-- ADMIN LOGIN FIXED AT BOTTOM -->
-<div class="admin-login">
-    <a href="/admin/login">
-        <i class="fa fa-user-shield"></i> Admin Login
-    </a>
-</div>
+<a href="/admin/login" class="admin-btn">👤 Admin Login</a>
 
 <script>
 function scanUrl() {
@@ -157,39 +126,29 @@ function scanUrl() {
 
     resultDiv.style.display = "block";
     resultDiv.className = "info";
-    resultDiv.innerText = "🔍 Scanning URL, please wait...";
+    resultDiv.innerText = "🔍 Scanning URL...";
 
     fetch("/scan-url", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ url: url })
+        body: JSON.stringify({ url })
     })
     .then(res => res.json())
     .then(data => {
-        let message = "";
-
         if (data.verdict === "KNOWN CLEAN") {
             resultDiv.className = "low";
-            message = `✅ KNOWN CLEAN URL\nSource: ${data.source}`;
-        }
-        else if (data.verdict === "KNOWN MALICIOUS") {
+            resultDiv.innerText = `✅ KNOWN CLEAN\nSource: ${data.source}`;
+        } else if (data.verdict === "KNOWN MALICIOUS") {
             resultDiv.className = "high";
-            message = `🚨 KNOWN MALICIOUS URL\nSource: ${data.source}`;
-        }
-        else if (data.verdict === "HIGH RISK") {
+            resultDiv.innerText = `🚨 MALICIOUS\nSource: ${data.source}`;
+        } else {
             resultDiv.className = "high";
-            message = `⚠️ HIGH RISK URL\nSource: ${data.source}\nML Risk: ${data.ml_risk}`;
+            resultDiv.innerText = `⚠️ HIGH RISK\nML Risk: ${data.ml_risk}`;
         }
-        else {
-            resultDiv.className = "info";
-            message = `⚠️ SUSPICIOUS URL\nSource: ${data.source}\nML Risk: ${data.ml_risk}`;
-        }
-
-        resultDiv.innerText = message;
     })
     .catch(() => {
         resultDiv.className = "info";
-        resultDiv.innerText = "❌ Error scanning URL";
+        resultDiv.innerText = "❌ Server error";
     });
 }
 </script>
