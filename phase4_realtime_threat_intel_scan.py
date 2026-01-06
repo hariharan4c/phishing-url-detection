@@ -16,21 +16,33 @@ from difflib import SequenceMatcher
 # CONFIG
 # =========================
 
-
 VT_API_KEY = os.getenv("VT_API_KEY")
 
 if not VT_API_KEY:
-    print("⚠️ VirusTotal API key NOT found. Using ML fallback.")
+    print("⚠️ VirusTotal API key NOT found. Using ML fallback if available.")
 else:
     print("✅ VirusTotal API key loaded successfully.")
-
-
 
 VT_TIMEOUT = 5
 ML_THRESHOLD = 0.6
 DB_FILE = "database.db"
 
-model = joblib.load("models/phishing_model.pkl")
+# =========================
+# LOAD ML MODEL (SAFE)
+# =========================
+
+model = None
+MODEL_PATH = "models/phishing_model.pkl"
+
+if os.path.exists(MODEL_PATH):
+    try:
+        model = joblib.load(MODEL_PATH)
+        print("✅ ML model loaded")
+    except Exception as e:
+        print("⚠️ ML model failed to load:", e)
+        model = None
+else:
+    print("ℹ️ ML model not present (cloud-safe mode)")
 
 # =========================
 # UTILS
@@ -42,20 +54,18 @@ def normalize_url(url):
     return url
 
 # =========================
-# 🔐 PHASE 8 — INTERNAL THREAT DB
+# INTERNAL THREAT DB
 # =========================
 
 def check_internal_threats(url):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-
         cursor.execute(
             "SELECT 1 FROM internal_threats WHERE url = ?",
             (url,)
         )
         found = cursor.fetchone()
-
         conn.close()
         return found is not None
     except:
@@ -82,7 +92,7 @@ def extract_features(url):
     }])
 
 # =========================
-# PHASE 5.1 — DNS & WHOIS
+# DNS + WHOIS
 # =========================
 
 def dns_whois_analysis(url):
@@ -91,7 +101,6 @@ def dns_whois_analysis(url):
 
     try:
         domain = urlparse(normalize_url(url)).netloc
-
         try:
             socket.gethostbyname(domain)
             has_dns = 1
@@ -107,59 +116,51 @@ def dns_whois_analysis(url):
                 domain_age_days = (datetime.now() - creation).days
         except:
             domain_age_days = 0
-
     except:
         pass
 
     return domain_age_days, has_dns
 
 # =========================
-# PHASE 5.2 — SSL
+# SSL CHECK
 # =========================
 
 def ssl_certificate_analysis(url):
     try:
         domain = urlparse(normalize_url(url)).netloc
         context = ssl.create_default_context()
-
         with context.wrap_socket(socket.socket(), server_hostname=domain) as sock:
             sock.settimeout(5)
             sock.connect((domain, 443))
-            cert = sock.getpeercert()
-            issuer = dict(x[0] for x in cert.get("issuer", []))
-            return 1, issuer.get("organizationName", "Unknown")
-
+            return 1, "Valid SSL"
     except:
         return 0, "Invalid SSL"
 
 # =========================
-# PHASE 5.3 — HOMOGRAPH
+# HOMOGRAPH
 # =========================
 
 def homograph_detection(url):
-    popular_domains = [
+    popular = [
         "google.com", "paypal.com", "amazon.com",
         "facebook.com", "apple.com", "microsoft.com",
-        "flipkart.com", "github.com"
+        "github.com"
     ]
 
     domain = urlparse(normalize_url(url)).netloc.lower().replace("www.", "")
-
-    for legit in popular_domains:
+    for legit in popular:
         score = SequenceMatcher(None, domain, legit).ratio()
         if 0.85 <= score < 1.0:
             return True, legit
-
     return False, None
 
 # =========================
-# PHASE 5.4 — CONTENT
+# PAGE CONTENT
 # =========================
 
 def page_content_analysis(url):
     keywords = ["login", "verify", "password", "urgent", "confirm", "account"]
     count = 0
-
     try:
         r = requests.get(normalize_url(url), timeout=5)
         text = r.text.lower()
@@ -167,14 +168,15 @@ def page_content_analysis(url):
             count += text.count(k)
     except:
         pass
-
     return count
 
 # =========================
-# PHASE 4 — VIRUSTOTAL
+# VIRUSTOTAL
 # =========================
 
 def submit_url_to_vt(url):
+    if not VT_API_KEY:
+        return None
     try:
         headers = {"x-apikey": VT_API_KEY}
         res = requests.post(
@@ -211,55 +213,55 @@ def get_vt_result(analysis_id):
 # =========================
 
 def scan_url(url):
-    print("\n🔵 Running Phase 4 + Phase 5 + Phase 8 Scan...")
+    print("🔵 Running secure scan...")
 
-    # 🔐 INTERNAL THREAT DB CHECK (FIRST)
+    # 1️⃣ Internal DB
     if check_internal_threats(url):
         return {
             "verdict": "KNOWN MALICIOUS",
-            "source": "Internal Threat DB",
+            "source": "Internal DB",
             "ml_risk": None
         }
 
-    # 🌐 VIRUSTOTAL CHECK
+    # 2️⃣ VirusTotal
     vt_id = submit_url_to_vt(url)
     if vt_id:
         time.sleep(3)
-        vt_result = get_vt_result(vt_id)
-
-        if vt_result == "clean":
+        vt = get_vt_result(vt_id)
+        if vt == "clean":
             return {
                 "verdict": "KNOWN CLEAN",
                 "source": "VirusTotal",
                 "ml_risk": None
             }
-
-        if vt_result == "malicious":
+        if vt == "malicious":
             return {
                 "verdict": "KNOWN MALICIOUS",
                 "source": "VirusTotal",
                 "ml_risk": None
             }
 
-    # 🤖 ML FALLBACK
+    # 3️⃣ ML fallback (ONLY if model exists)
+    if model is None:
+        return {
+            "verdict": "UNKNOWN",
+            "source": "No ML / No VT",
+            "ml_risk": None
+        }
+
     features = extract_features(url)
     risk = model.predict_proba(features)[0][1]
 
     domain_age, has_dns = dns_whois_analysis(url)
     ssl_valid, _ = ssl_certificate_analysis(url)
-    is_homo, brand = homograph_detection(url)
+    is_homo, _ = homograph_detection(url)
     suspicious_words = page_content_analysis(url)
 
-    if domain_age < 30:
-        risk += 0.15
-    if has_dns == 0:
-        risk += 0.15
-    if ssl_valid == 0:
-        risk += 0.15
-    if is_homo:
-        risk += 0.30
-    if suspicious_words >= 3:
-        risk += 0.20
+    if domain_age < 30: risk += 0.15
+    if has_dns == 0: risk += 0.15
+    if ssl_valid == 0: risk += 0.15
+    if is_homo: risk += 0.30
+    if suspicious_words >= 3: risk += 0.20
 
     risk = min(risk, 1.0)
 
