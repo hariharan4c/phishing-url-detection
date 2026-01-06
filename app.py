@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask import Flask, request, jsonify, render_template, redirect, session
 import sqlite3
 import logging
+import os
 from phase4_realtime_threat_intel_scan import scan_url
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
 DB_FILE = "database.db"
 
 # =======================
@@ -91,7 +92,7 @@ def scan():
     return jsonify(scan_result)
 
 # =======================
-# REPORT URL
+# REPORT URL (USER)
 # =======================
 @app.route("/report-url", methods=["POST"])
 def report_url():
@@ -107,13 +108,14 @@ def report_url():
     conn.commit()
     conn.close()
 
+    logging.warning(f"User reported URL: {url}")
     return jsonify({"status": "reported"})
 
 # =======================
 # ADMIN LOGIN
 # =======================
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -131,19 +133,26 @@ def admin_login():
     return jsonify({"error": "Invalid username or password"}), 401
 
 # =======================
+# ADMIN LOGOUT (OPTIONAL)
+# =======================
+@app.route("/admin/logout")
+def admin_logout():
+    session.clear()
+    return redirect("/admin/login")
+
+# =======================
 # ADMIN DASHBOARD
 # =======================
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if not session.get("admin_logged_in"):
         return redirect("/admin/login")
-
     return render_template("admin_dashboard.html")
 
 # =======================
-# ADMIN REPORTS
+# ADMIN – FETCH REPORTS
 # =======================
-@app.route("/admin/reports")
+@app.route("/admin/api/reports")
 def admin_reports():
     if not session.get("admin_logged_in"):
         return jsonify({"error": "Unauthorized"}), 403
@@ -154,13 +163,14 @@ def admin_reports():
         SELECT id, url, comment, status, timestamp
         FROM reports
         WHERE status='pending'
+        ORDER BY timestamp DESC
     """)
     rows = cursor.fetchall()
     conn.close()
 
     return jsonify([
         {
-            "report_id": r[0],
+            "id": r[0],
             "url": r[1],
             "comment": r[2],
             "status": r[3],
@@ -168,6 +178,42 @@ def admin_reports():
         }
         for r in rows
     ])
+
+# =======================
+# ADMIN – APPROVE / REJECT
+# =======================
+@app.route("/admin/api/review", methods=["POST"])
+def review_report():
+    if not session.get("admin_logged_in"):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json(force=True)
+    report_id = data.get("report_id")
+    action = data.get("action")  # approve / reject
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    if action == "approve":
+        cursor.execute("""
+            INSERT OR IGNORE INTO internal_threats (url, source)
+            SELECT url, 'User Report'
+            FROM reports WHERE id=?
+        """, (report_id,))
+        status = "approved"
+    else:
+        status = "rejected"
+
+    cursor.execute(
+        "UPDATE reports SET status=? WHERE id=?",
+        (status, report_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    logging.warning(f"Admin reviewed report {report_id} → {status}")
+    return jsonify({"status": status})
 
 # =======================
 # RUN SERVER (RENDER SAFE)
