@@ -4,10 +4,11 @@ import logging
 from phase4_realtime_threat_intel_scan import scan_url
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"  # required for sessions later
 DB_FILE = "database.db"
 
 # =======================
-# LOGGING (PHASE 9.2)
+# LOGGING
 # =======================
 logging.basicConfig(
     level=logging.INFO,
@@ -71,7 +72,6 @@ def scan():
     url = data.get("url")
 
     scan_result = scan_url(url)
-
     logging.info(f"Scanned URL: {url} | Verdict: {scan_result['verdict']}")
 
     conn = sqlite3.connect(DB_FILE)
@@ -111,14 +111,18 @@ def report_url():
     return jsonify({"status": "reported"})
 
 # =======================
-# ADMIN LOGIN
+# ADMIN LOGIN (FIXED)
 # =======================
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "GET":
         return render_template("admin_login.html")
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"error": "Invalid request"}), 400
+
     username = data.get("username")
     password = data.get("password")
 
@@ -126,7 +130,7 @@ def admin_login():
         logging.info("Admin logged in")
         return jsonify({"redirect": "/admin/dashboard"})
 
-    return jsonify({"error": "Invalid credentials"}), 401
+    return jsonify({"message": "Invalid credentials"}), 401
 
 # =======================
 # ADMIN DASHBOARD
@@ -136,7 +140,7 @@ def admin_dashboard():
     return render_template("admin_dashboard.html")
 
 # =======================
-# ADMIN SCANS DATA
+# ADMIN SCANS
 # =======================
 @app.route("/admin/scans")
 def admin_scans():
@@ -218,10 +222,7 @@ def approve_report():
     return jsonify({"status": status})
 
 # =======================
-# RUN SERVER
+# RUN SERVER (RENDER SAFE)
 # =======================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
-
-
